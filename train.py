@@ -1,23 +1,19 @@
-from fastai.vision import *
-from fastai.vision.gan import *
-from fastai import *
 import os
-import random
-import time
 import numpy as np
 import torch
 from torch import nn
-from torch.backends import cudnn
 from torch import optim
 from torch.utils.data import DataLoader
-from torch.autograd import Variable
-from torch.nn import functional as F
 from tqdm import tqdm, trange
 from model.network import SSLI
 from tool.dataloader import SsliDataset
 from metric.loss import mask_loss
 import gc
 from sklearn.model_selection import train_test_split
+import pytorch_lightning as pl
+from model.pl_model  import LitModel
+from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 
 # 划分数据集
@@ -36,13 +32,20 @@ val_dataset = SsliDataset(val_paths, mean, std, ratio=0.4)
 test_dataset = SsliDataset(test_paths, mean, std)
 
 ratio = 0.3
-batch_size = 32
+batch_size = 128
 num_workers = 4
 
 train_loader = DataLoader(
     train_dataset,
     batch_size=batch_size,
     shuffle=True,
+    pin_memory=False,
+    num_workers=num_workers)
+
+val_loader = DataLoader(
+    val_dataset,
+    batch_size=batch_size,
+    shuffle=False,
     pin_memory=False,
     num_workers=num_workers)
 
@@ -53,19 +56,39 @@ test_loader = DataLoader(
     pin_memory=False,
     num_workers=num_workers)
 
+model = SSLI(7,256,4,8,7,0.2)
+lit_model = LitModel(model, mean, std)
 
-# model = SSLI(7,256,4,8,7,0.2)
 
-# train_data = ImageDataBunch(train_dl=train_loader, valid_dl=test_loader)
-# train_data.sanity_check()
-# save_name = 'SSLI'
-# save_path = os.path.join('models', save_name)
-# if not os.path.exists(save_path): os.mkdir(save_path)
+logger = TensorBoardLogger("tb_logs", name="my_model")
 
-# model = SSLI(7,256,4,8,7,0.2).cuda()
-# #model = nn.DataParallel(model)
-# learn = Learner(train_data, model, model_dir=save_path, loss_func=mask_loss())
-# learn.fit_one_cycle(50,1e-4, callbacks=[
-#     callbacks.SaveModelCallback(learn, every='improvement', monitor='valid_loss', name=f'best_val'),
-#     callbacks.CSVLogger(learn, os.path.join(save_path, 'record'))], wd=1e-3)
-# learn.save('model_49', with_opt=False)
+checkpoint_callback = ModelCheckpoint(
+    monitor='val_loss',
+    dirpath='checkpoints/',
+    filename='model-{epoch:02d}-{val_loss:.2f}',
+    save_top_k=3,
+    mode='min',
+)
+
+# 配置 EarlyStopping 回调
+early_stop_callback = EarlyStopping(
+    monitor='val_loss',
+    patience=3,
+    mode='min'
+)
+# 创建 Trainer 并配置 logger
+trainer = pl.Trainer(
+    max_epochs=10,
+    min_epochs=1,
+    gpus=1,  
+    logger=logger,
+    callbacks=[checkpoint_callback, early_stop_callback],
+    precision=32,  # or 16 for mixed precision
+    profiler="simple"  # Use the simple profiler
+)
+
+# 训练模型
+trainer.fit(lit_model, train_loader, val_loader)
+
+# 测试模型
+trainer.test(dataloaders=test_loader)

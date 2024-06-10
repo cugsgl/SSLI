@@ -5,8 +5,8 @@ class mask_loss(nn.Module): # 训练CNN用
         super(mask_loss, self).__init__()
         self.batch = batch
         self.loss = nn.L1Loss(reduction='mean')
-        self.mean = mean
-        self.std = std
+        self.mean = torch.Tensor(mean)
+        self.std = torch.Tensor(std)
     
     def __call__(self, pred, target):
         y, mask = target[:,:,:7], target[:,:,7:]        
