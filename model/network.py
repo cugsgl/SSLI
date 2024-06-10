@@ -127,6 +127,8 @@ class SSLI(nn.Module):
 
     def forward(self, x):
         mask = (x[:,:,-1] != x[:,:,-1].min()).unsqueeze(1).repeat(1, x.size(1), 1).unsqueeze(1)
+        print('mask', mask)
+        print('mask', mask.shape)
         x = self.encoding(x[:,:,:-1])
         pos = torch.arange(0, x.size(1)).unsqueeze(0).repeat(x.size(0), 1).to(x.device)
         x = self.pos_encoding(pos) + x
