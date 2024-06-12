@@ -12,12 +12,14 @@ class LitModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
+        x  = self(x)
         loss = self.loss(x,y)
         self.log('train_loss', loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
+        x  = self(x)
         loss = self.loss(x,y)
         self.log('val_loss', loss)
         return loss

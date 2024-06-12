@@ -23,11 +23,18 @@ class SsliDataset(data.Dataset):
             self.lst.append(f'{i:03d}.swir2')
             self.lst.append(f'{i:03d}.qa')
         # 创建文件索引
+        print('load dataset')
         for file_path in tqdm(self.file_paths):
             data_part = pd.read_csv(file_path)
-            self.file_index.extend([(file_path, idx) for idx in range(1,len(data_part)+1)])
             if len(self.head) == 0 :
                 self.head = pd.read_csv(file_path, nrows=0).columns.tolist()
+            # 判断有效天数 
+           # 过滤某一列数据不为0的行
+            qa_columns = [col for col in data_part.columns if 'qa' in col]
+            valid_rows = data_part[data_part[qa_columns].apply(lambda row: (row != 0).sum() > 5, axis=1)]
+            original_indices = valid_rows.index
+            self.file_index.extend([(file_path, idx+1) for idx in original_indices])
+            
 
     def __len__(self):
         return len(self.file_index)

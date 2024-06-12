@@ -21,9 +21,9 @@ all_file_paths = [os.path.join('./data', f) for f in os.listdir('data') if f.end
 train_paths, test_paths = train_test_split(all_file_paths, test_size=0.2, random_state=42)
 test_paths, val_paths = train_test_split(test_paths, test_size=0.5, random_state=42)
 
-print(f"train_paths: {len(train_paths)}")
-print(f"test_paths: {len(test_paths)}")
-print(f"val_paths: {len(val_paths)}")
+print(f"train_paths size: {len(train_paths)}")
+print(f"test_paths size: {len(test_paths)}")
+print(f"val_paths size: {len(val_paths)}")
 mean = [ 546.7953,  649.5146,  967.6898, 1159.2480, 2442.1875, 2433.1270, 1822.9164]
 std =  [ 447.3463,  519.1241,  668.2700,  904.4800, 1166.9471, 1226.1171, 1154.9677]
 # 创建数据集实例
@@ -32,8 +32,8 @@ val_dataset = SsliDataset(val_paths, mean, std, ratio=0.4)
 test_dataset = SsliDataset(test_paths, mean, std)
 
 ratio = 0.3
-batch_size = 128
-num_workers = 4
+batch_size = 350
+num_workers = 8
 
 train_loader = DataLoader(
     train_dataset,
@@ -78,9 +78,10 @@ early_stop_callback = EarlyStopping(
 )
 # 创建 Trainer 并配置 logger
 trainer = pl.Trainer(
-    max_epochs=10,
+    max_epochs=5,
     min_epochs=1,
-    gpus=1,  
+    accelerator="gpu",
+    devices=1,
     logger=logger,
     callbacks=[checkpoint_callback, early_stop_callback],
     precision=32,  # or 16 for mixed precision
